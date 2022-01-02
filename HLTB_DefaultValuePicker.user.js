@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name        HLTB DefaultValuePicker
-// @version     0.4.3
+// @version     0.5
 // @description Picks some values while submitting time by default - check lines 20-25 in script.
 // @author      beridok
 // @namespace   beridok@gmail.com
 // @include     https://howlongtobeat.com/*
-// @updateURL   https://dl.dropboxusercontent.com/s/diu8krl0mzro6o2/HLTB_US.user.js
+// @downloadURL https://github.com/Beridok/UserScript_Collection/raw/main/HLTB_DefaultValuePicker.user.js
+// @updateURL   https://github.com/Beridok/UserScript_Collection/raw/main/HLTB_DefaultValuePicker.user.js
 // @run-at      document-end
 // @grant       none
 // @noframes
@@ -20,8 +21,8 @@
         platform : "PC", //Write default platform with exact Uppercase.
         field : "Completed", //Retired/Custom1/Custom2/Custom3/Playing/Backlog/Replays
         storefront : "Steam", //Name your default Storefront
-        fp : true, //true/false/null => define if it should choose "Yes, first playthrough". Inputting 'false' will give "No, this is replay". Inputting 'none' will do nothing.
-        df : 1, //Delay factor - increase this, if default options does not seem to load, due to slower connection to site.
+        firstPlaythrough : true, //true/false/null => define if it should choose "Yes, first playthrough". Inputting 'false' will give "No, this is replay". Inputting 'none' will do nothing.
+        delayFactor : 1, //Delay factor - increase this, if default options does not seem to load, due to slower connection to site.
     };
 
     console.info && console.info('%c «%s» %c—— %c %s ',
@@ -37,7 +38,7 @@
     var submitDivPlatform = "fieldset.in:nth-child(5) > div:nth-child(1) > select:nth-child(2)";
     var submitDivStorefront = "fieldset.in:nth-child(5) > div:nth-child(2) > select:nth-child(2)";
 
-    if ( config.df <= 0 ) { config.df = 1; }
+    if ( config.delayFactor <= 0 ) { config.delayFactor = 1; }
     //Zabezpieczenie gdyby ktoś wpisał zero do konfiguracji. Potrzebne jest jakieś opóźnienie
     //Security in case of someone entering 0 as value... we need some delay factor
 
@@ -48,7 +49,7 @@
             //document.querySelector(quickAddDivPlatform).textContent = dc.platform;
             document.querySelector(quickAddDivPlatform).value = config.platform;
             document.querySelector(quickAddDivStorefront).value = config.storefront;
-        }, 100*config.df );
+        }, 100*config.delayFactor );
     }
 
     //During submission of playthrough...
@@ -58,7 +59,11 @@
             //Minor bug: Does not check if already checkbox is check - therefore resulting in unchecking during edit of HLTB submission
             switch ( config.field ) {
                 case "Completed":
-                    document.querySelector('#list_cp').click();
+                    //Website behavior changed, so now it requires check if user clicked "Complete" on game's page
+                    //One way is reading parameter from URL - other would be to read state of checkbox...
+                    if ( window.location.search.indexOf('list_cp=1') === -1 ) {
+                        document.querySelector('#list_cp').click();
+                    }
                     break;
                 case "Retired":
                     document.querySelector('#list_rt').click();
@@ -86,22 +91,31 @@
                     break;
             }
 
-            //Select new values...
-            document.querySelector(submitDivPlatform).value = config.platform;
-            document.querySelector(submitDivStorefront).value = config.storefront;
+            //Select new values... but only if values are not existing in the URL
+            var urlParameterPlatform = window.location.search.split('platform=')[1].split('&store=')[0];
+            var urlParameterStorefront = window.location.search.split('&store=')[1];
+            if ( urlParameterPlatform === "" ) {
+                document.querySelector(submitDivPlatform).value = config.platform;
+            }
+            if ( urlParameterStorefront === "" ) {
+                document.querySelector(submitDivStorefront).value = config.storefront;
+            }
 
             //Click "Steam icon" to pull current progress (time spent in the game so far);
-            document.querySelector("fieldset.in:nth-child(8) > div:nth-child(1) > div:nth-child(1) > img:nth-child(1)").click();
+            if ( document.querySelector("fieldset.in:nth-child(8) > div:nth-child(1) > div:nth-child(1) > img:nth-child(1)") !== null )
+            {
+                document.querySelector("fieldset.in:nth-child(8) > div:nth-child(1) > div:nth-child(1) > img:nth-child(1)").click();
+            }
 
-            //setTimeout(() => {
-            var firstPlaythrough = document.querySelector('#play_num').value;
-            if ( config.fp === true ) { firstPlaythrough = 1; }
-            else if ( config.fp === false ) { firstPlaythrough = 2; }
-            else if ( config.fp === null ) { firstPlaythrough = 0; }
+            //Select by default that it was first playthrough...
+            var firstPlaythrough;
+            if ( config.firstPlaythrough === true ) { firstPlaythrough = 1; }
+            else if ( config.firstPlaythrough === false ) { firstPlaythrough = 2; }
+            else if ( config.firstPlaythrough === null ) { firstPlaythrough = 0; }
             else { console.log('You entered wrong "First Playthrough" value. Check line 22 in UserScript. It can only be: true, false or null.'); }
-            //}, 50);
+            document.querySelector('#play_num').value = firstPlaythrough;
 
-        }, 100*config.df );
+        }, 100*config.delayFactor );
     }
 
     //CODES below are saved for my own organizing purpose - to find them more easily in future needs...
